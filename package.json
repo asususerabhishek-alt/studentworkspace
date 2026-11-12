@@ -1,0 +1,19 @@
+{
+  "name": "student-productivity-suite",
+  "version": "1.0.0",
+  "description": "Unified Academic Workspace with smart task analytics, SGPA forecasting, and Pomodoro study tools",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "next": "^14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sql.js": "^1.16.0"
+  },
+  "author": "Abhishek Kumar",
+  "license": "MIT"
+}

@@ -1,0 +1,38 @@
+===============================================================
+           CAMPUSFLOW ACADEMIC PROGRESS & STUDY REPORT         
+===============================================================
+Student Name:    Abhishek Kumar
+Enrollment No:   CS201 - 25CSH208
+Department:      B.E. Computer Science & Engineering (UIE)
+Current SGPA:    9.30 / 10.00
+Focus Sessions:  4 Pomodoros completed
+===============================================================
+
+1. REGISTERED COURSES & PERFORMANCE:
+---------------------------------------------------------------
+Code         Course Name                    Credits  Grade 
+---------------------------------------------------------------
+25CSH-208    Object Oriented Programming (Java) 4.0      A+    
+25CSH-202    Data Structures & Algorithms   4.0      A     
+25CSH-205    Computer Architecture & Organization 3.0      A+    
+25CSH-209    Discrete Mathematical Structures 3.5      A     
+25CSH-212    Operating Systems & Concurrency 3.5      B+    
+---------------------------------------------------------------
+
+2. ASSIGNMENTS & DEADLINES:
+---------------------------------------------------------------
+Title                Subject         Due Date     Priority   Status    
+---------------------------------------------------------------
+Java Multithreading Producer-Consumer OOP Java        2026-11-18   High       PENDING   
+HackerRank Serialization & IO Lab OOP Java        2026-11-20   High       PENDING   
+Binary Search Tree Traversal Analysis Data Structures 2026-11-25   Medium     PENDING   
+Assembly Instruction Pipeline Report Computer Org    2026-11-28   Low        DONE      
+---------------------------------------------------------------
+
+3. REVISION FLASHCARDS SUMMARY:
+Total Flashcards Created: 3
+Mastered Topics:         0
+
+Generated automatically via CampusFlow Academic Suite.
+Technology: Pure Java Standard Edition (No external DB needed)
+===============================================================

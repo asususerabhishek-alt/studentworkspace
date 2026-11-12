@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Workspace</title>
+  <meta name="description" content="A calm, offline-first academic productivity workspace powered by local SQLite. Features assignment tracking, SGPA/CGPA forecasting, Pomodoro focus timer, and active recall flashcards.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Client-side WebAssembly SQLite Engine -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Quiet Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <a href="#assignments" class="brand-link">
+          <span class="brand-mark">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </span>
+          <span class="brand-name">Student Workspace</span>
+        </a>
+        <span class="header-divider">/</span>
+        <span class="header-context">Academic Workspace</span>
+      </div>
+
+      <div class="header-center">
+        <div class="student-chip">
+          <span class="student-avatar">SW</span>
+          <span class="student-name">Student Workspace</span>
+          <span class="student-meta">Academic Workspace</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="status-metric">
+          <span class="metric-label">SGPA</span>
+          <span class="metric-value" id="quickSgpa">0.00</span>
+        </div>
+        <div class="status-divider"></div>
+        <div class="status-metric">
+          <span class="metric-label">Due Soon</span>
+          <span class="metric-value" id="quickPending">0</span>
+        </div>
+        <div class="status-divider"></div>
+        <div class="status-metric">
+          <span class="metric-label">Focus Blocks</span>
+          <span class="metric-value" id="quickPomodoro">0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="app-nav">
+      <div class="nav-container">
+        <div class="nav-tabs">
+          <button class="nav-tab active" data-tab="assignments">
+            <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 11l3 3L22 4"/>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
+            <span>Assignments</span>
+          </button>
+          <button class="nav-tab" data-tab="gpa">
+            <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+              <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+            </svg>
+            <span>SGPA Calculator</span>
+          </button>
+          <button class="nav-tab" data-tab="pomodoro">
+            <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>Focus Timer</span>
+          </button>
+          <button class="nav-tab" data-tab="flashcards">
+            <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+              <path d="M16 3H4a2 2 0 0 0-2 2v2"/>
+            </svg>
+            <span>Revision Flashcards</span>
+          </button>
+          <button class="nav-tab" data-tab="analytics">
+            <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/>
+              <line x1="12" y1="20" x2="12" y2="4"/>
+              <line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            <span>Summary & Export</span>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="app-main">
+
+      <!-- ==================== TAB 1: ASSIGNMENTS ==================== -->
+      <section id="tab-assignments" class="tab-pane active">
+        <div class="section-header">
+          <div>
+            <h1 class="section-title">Assignments and deadlines</h1>
+            <p class="section-desc">Track and prioritize coursework with due dates and estimated workload.</p>
+          </div>
+          <div class="section-actions">
+            <button class="btn btn-secondary" id="btnSortUrgency">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
+              <span>Sort by priority</span>
+            </button>
+            <button class="btn btn-primary" id="btnOpenTaskModal">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>New assignment</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-panel">
+          <div class="search-field">
+            <svg class="field-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="taskSearchInput" placeholder="Search assignments or courses">
+          </div>
+          <div class="filter-controls">
+            <div class="select-wrapper">
+              <label class="select-label">Priority</label>
+              <select id="priorityFilter" class="form-select-sm">
+                <option value="ALL">All priorities</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+            <div class="select-wrapper">
+              <label class="select-label">Status</label>
+              <select id="statusFilter" class="form-select-sm">
+                <option value="ALL">All status</option>
+                <option value="PENDING">Pending</option>
+                <option value="COMPLETED">Completed</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task Grid -->
+        <div class="task-grid" id="taskList">
+          <!-- Dynamically populated -->
+        </div>
+      </section>
+
+      <!-- ==================== TAB 2: GPA CALCULATOR ==================== -->
+      <section id="tab-gpa" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h1 class="section-title">SGPA and grade calculation</h1>
+            <p class="section-desc">Weighted credit point calculations based on the standard 10-point scale.</p>
+          </div>
+          <button class="btn btn-primary" id="btnOpenCourseModal">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Add course</span>
+          </button>
+        </div>
+
+        <div class="gpa-overview-grid">
+          <!-- Summary Card -->
+          <div class="card gpa-metric-card">
+            <div class="metric-top">
+              <span class="card-caption">Semester SGPA</span>
+              <span class="status-tag tag-green" id="dispClassification">First class with distinction</span>
+            </div>
+            <div class="gpa-display-row">
+              <span class="gpa-large-number" id="dispSgpa">9.30</span>
+              <span class="gpa-max-scale">/ 10.00</span>
+            </div>
+            <div class="gpa-breakdown-row">
+              <div class="breakdown-item">
+                <span class="breakdown-label">Registered credits</span>
+                <span class="breakdown-val" id="dispTotalCredits">18.0</span>
+              </div>
+              <div class="breakdown-item">
+                <span class="breakdown-label">Weighted points</span>
+                <span class="breakdown-val" id="dispWeightedPoints">167.5</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Simulator Card -->
+          <div class="card gpa-simulator-card">
+            <div class="metric-top">
+              <span class="card-caption">Target SGPA simulator</span>
+              <span class="status-tag tag-neutral">Forecasting</span>
+            </div>
+            <p class="simulator-intro">Estimate required grade points across remaining semester modules to reach your target.</p>
+            <div class="sim-controls">
+              <div class="input-inline">
+                <label for="simTargetInput">Target CGPA</label>
+                <input type="number" id="simTargetInput" step="0.05" min="5.0" max="10.0" value="9.50">
+              </div>
+              <button class="btn btn-secondary" id="btnSimulate">Calculate requirement</button>
+            </div>
+            <div class="sim-result-box" id="simResultBox">
+              Enter target grade above to view credit requirement analysis.
+            </div>
+          </div>
+        </div>
+
+        <!-- Course Table -->
+        <div class="card table-card">
+          <table class="data-table" id="courseTable">
+            <thead>
+              <tr>
+                <th style="width: 140px;">Course code</th>
+                <th>Course title</th>
+                <th style="width: 90px; text-align: right;">Credits</th>
+                <th style="width: 90px; text-align: center;">Grade</th>
+                <th style="width: 110px; text-align: right;">Points</th>
+                <th style="width: 130px; text-align: right;">Weighted pts</th>
+                <th style="width: 80px; text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="courseTableBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ==================== TAB 3: POMODORO TIMER ==================== -->
+      <section id="tab-pomodoro" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h1 class="section-title">Focus timer</h1>
+            <p class="section-desc">Structured 25-minute study intervals to sustain deliberate attention.</p>
+          </div>
+        </div>
+
+        <div class="pomodoro-grid">
+          <!-- Main Timer Dial Card -->
+          <div class="card timer-card">
+            <div class="mode-selector">
+              <button class="mode-btn active" data-mode="focus" data-time="25">Focus (25m)</button>
+              <button class="mode-btn" data-mode="shortBreak" data-time="5">Short break (5m)</button>
+              <button class="mode-btn" data-mode="longBreak" data-time="15">Long break (15m)</button>
+            </div>
+
+            <div class="dial-container">
+              <svg class="dial-svg" width="240" height="240" viewBox="0 0 240 240">
+                <circle class="dial-track" cx="120" cy="120" r="104" />
+                <circle class="dial-indicator" id="timerProgress" cx="120" cy="120" r="104" />
+              </svg>
+              <div class="dial-center">
+                <span class="timer-readout" id="timerDisplay">25:00</span>
+                <span class="timer-status-text" id="timerModeLabel">Focus interval</span>
+              </div>
+            </div>
+
+            <div class="timer-action-row">
+              <button class="btn btn-primary btn-md" id="btnTimerStart">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>Start</span>
+              </button>
+              <button class="btn btn-secondary btn-md" id="btnTimerPause" disabled>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                <span>Pause</span>
+              </button>
+              <button class="btn btn-secondary btn-md" id="btnTimerReset">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                <span>Reset</span>
+              </button>
+            </div>
+
+            <div class="timer-meta-strip">
+              <div class="meta-stat">
+                <span class="meta-num" id="pomoCount">4</span>
+                <span class="meta-lbl">Completed blocks</span>
+              </div>
+              <div class="meta-stat-divider"></div>
+              <div class="meta-stat">
+                <span class="meta-num" id="pomoMinutes">100m</span>
+                <span class="meta-lbl">Total focus</span>
+              </div>
+              <div class="meta-stat-divider"></div>
+              <div class="meta-stat">
+                <span class="meta-num" id="pomoStreak">4</span>
+                <span class="meta-lbl">Session streak</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Guidelines & Course Tagger -->
+          <div class="timer-side-column">
+            <div class="card">
+              <h2 class="card-title">Study session protocol</h2>
+              <ul class="guideline-list">
+                <li>
+                  <span class="step-num">1</span>
+                  <div>
+                    <strong>Select one deliverable</strong>
+                    <p>Silence notifications and work only on the selected subject.</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="step-num">2</span>
+                  <div>
+                    <strong>Maintain continuous focus</strong>
+                    <p>Avoid tab switching or passive browsing until the timer ends.</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="step-num">3</span>
+                  <div>
+                    <strong>Take deliberate rest</strong>
+                    <p>Step away from the screen for five minutes to recover attention.</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div class="card">
+              <h2 class="card-title">Active course focus</h2>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="pomoSubjectSelector">Log session under course</label>
+                <select id="pomoSubjectSelector" class="form-select">
+                  <option value="Object Oriented Programming">Object Oriented Programming (Java)</option>
+                  <option value="Data Structures & Algorithms">Data Structures & Algorithms</option>
+                  <option value="Computer Architecture">Computer Architecture & Organization</option>
+                  <option value="Discrete Mathematics">Discrete Mathematical Structures</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== TAB 4: FLASHCARDS ==================== -->
+      <section id="tab-flashcards" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h1 class="section-title">Revision flashcards</h1>
+            <p class="section-desc">Active recall practice to strengthen concept retrieval before examinations.</p>
+          </div>
+          <button class="btn btn-primary" id="btnOpenFlashcardModal">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>New card</span>
+          </button>
+        </div>
+
+        <div class="flashcard-deck-layout">
+          <div class="flashcard-viewport" id="activeFlashcard">
+            <div class="flashcard-box" id="cardInner">
+              <!-- Front Face (Question) -->
+              <div class="card-side side-front">
+                <div class="side-header">
+                  <span class="tag-category" id="fcSubject">Java OOP</span>
+                  <span class="side-counter" id="fcCounter">Card 1 of 4</span>
+                </div>
+                <div class="side-content">
+                  <span class="content-eyebrow">Prompt</span>
+                  <p class="content-text" id="fcQuestion">What is the difference between Method Overloading and Method Overriding?</p>
+                </div>
+                <div class="side-footer">
+                  <span>Press <kbd class="keycap">Space</kbd> or click to reveal answer</span>
+                </div>
+              </div>
+
+              <!-- Back Face (Answer) -->
+              <div class="card-side side-back">
+                <div class="side-header">
+                  <span class="tag-category">Answer explanation</span>
+                  <span class="mastery-indicator" id="fcMasteryTag">Unmastered</span>
+                </div>
+                <div class="side-content">
+                  <span class="content-eyebrow">Answer</span>
+                  <p class="content-text" id="fcAnswer">Overloading occurs at compile-time within the same class with differing parameter types. Overriding occurs at runtime when a subclass supplies a specific implementation of an inherited parent method with an identical signature.</p>
+                </div>
+                <div class="side-footer">
+                  <span>Click to flip back to question</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Controls -->
+          <div class="flashcard-nav-row">
+            <button class="btn btn-secondary" id="btnFcPrev">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="15 18 9 12 15 6"/></svg>
+              <span>Previous</span>
+            </button>
+            <button class="btn btn-secondary" id="btnFcFlip">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+              <span>Flip card</span>
+            </button>
+            <button class="btn btn-secondary" id="btnFcMaster">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <span id="fcMasterBtnText">Mark mastered</span>
+            </button>
+            <button class="btn btn-secondary" id="btnFcNext">
+              <span>Next</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== TAB 5: ANALYTICS & EXPORT ==================== -->
+      <section id="tab-analytics" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h1 class="section-title">Academic report and export</h1>
+            <p class="section-desc">Generate official performance documentation or download local state backups.</p>
+          </div>
+          <div class="section-actions">
+            <button class="btn btn-secondary" id="btnExportTxt">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span>Download text report</span>
+            </button>
+            <button class="btn btn-primary" id="btnExportJson">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Download JSON backup</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="analytics-stat-row">
+          <div class="card stat-card">
+            <span class="stat-caption">Registered courses</span>
+            <span class="stat-metric-large" id="statCourseCount">5</span>
+          </div>
+          <div class="card stat-card">
+            <span class="stat-caption">Logged assignments</span>
+            <span class="stat-metric-large" id="statTaskCount">4</span>
+          </div>
+          <div class="card stat-card">
+            <span class="stat-caption">Mastered concepts</span>
+            <span class="stat-metric-large" id="statMasteredCount">2 / 4</span>
+          </div>
+          <div class="card stat-card">
+            <span class="stat-caption">Total focus logged</span>
+            <span class="stat-metric-large" id="statStudyMins">100m</span>
+          </div>
+        </div>
+
+        <div class="card report-box">
+          <div class="report-box-header">
+            <span class="card-title">Generated summary preview</span>
+            <span class="status-tag tag-neutral">ASCII Formatted</span>
+          </div>
+          <pre class="ascii-preview" id="reportPreviewBox">Loading academic summary...</pre>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-container">
+        <span class="footer-left">Student Workspace</span>
+        <span class="footer-center">Offline-First Academic Productivity • SQLite WebAssembly Engine</span>
+        <span class="footer-right">Local Persistence</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Modal 1: Assignment -->
+  <div class="modal-backdrop" id="taskModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title">New assignment</h2>
+        <button class="btn-close" id="btnCloseTaskModal">✕</button>
+      </div>
+      <form id="taskForm">
+        <div class="form-group">
+          <label for="taskTitleInput">Assignment title</label>
+          <input type="text" id="taskTitleInput" required placeholder="Multithreaded Producer-Consumer Concurrency">
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="taskSubjectInput">Course or module</label>
+            <input type="text" id="taskSubjectInput" required placeholder="Object Oriented Programming">
+          </div>
+          <div class="form-group">
+            <label for="taskDateInput">Due date</label>
+            <input type="date" id="taskDateInput" required>
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="taskPriorityInput">Priority</label>
+            <select id="taskPriorityInput">
+              <option value="High">High</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="taskHoursInput">Estimated hours</label>
+            <input type="number" id="taskHoursInput" min="1" max="50" value="3">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="btnCancelTask">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save assignment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Course -->
+  <div class="modal-backdrop" id="courseModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title">Add semester course</h2>
+        <button class="btn-close" id="btnCloseCourseModal">✕</button>
+      </div>
+      <form id="courseForm">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="courseCodeInput">Course code</label>
+            <input type="text" id="courseCodeInput" required placeholder="25CSH-208">
+          </div>
+          <div class="form-group">
+            <label for="courseNameInput">Course title</label>
+            <input type="text" id="courseNameInput" required placeholder="Object Oriented Programming">
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="courseCreditsInput">Credits</label>
+            <select id="courseCreditsInput">
+              <option value="1.0">1.0</option>
+              <option value="2.0">2.0</option>
+              <option value="3.0">3.0</option>
+              <option value="3.5">3.5</option>
+              <option value="4.0" selected>4.0</option>
+              <option value="5.0">5.0</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="courseGradeInput">Expected grade</label>
+            <select id="courseGradeInput">
+              <option value="A+">A+ (10.0)</option>
+              <option value="A" selected>A (9.0)</option>
+              <option value="B+">B+ (8.0)</option>
+              <option value="B">B (7.0)</option>
+              <option value="C+">C+ (6.0)</option>
+              <option value="C">C (5.0)</option>
+              <option value="D">D (4.0)</option>
+              <option value="F">F (0.0)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="btnCancelCourse">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add course</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3: Flashcard -->
+  <div class="modal-backdrop" id="flashcardModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title">Create revision card</h2>
+        <button class="btn-close" id="btnCloseFcModal">✕</button>
+      </div>
+      <form id="flashcardForm">
+        <div class="form-group">
+          <label for="fcSubjectInput">Topic</label>
+          <input type="text" id="fcSubjectInput" required placeholder="Java OOP • Polymorphism">
+        </div>
+        <div class="form-group">
+          <label for="fcQuestionInput">Question prompt</label>
+          <textarea id="fcQuestionInput" rows="3" required placeholder="Enter concept prompt..."></textarea>
+        </div>
+        <div class="form-group">
+          <label for="fcAnswerInput">Answer</label>
+          <textarea id="fcAnswerInput" rows="4" required placeholder="Enter concise explanation..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="btnCancelFc">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save card</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
