@@ -113,27 +113,27 @@ def create_presentation():
     p_tm_head.space_after = Pt(10)
 
     p_m1 = tf_tm.add_paragraph()
-    p_m1.text = "Abhishek Kumar"
+    p_m1.text = "Abhishek Kumar & Ankit Raj"
     p_m1.font.bold = True
     p_m1.font.size = Pt(14)
     p_m1.font.color.rgb = C_TEXT_DARK
     p_m1.space_after = Pt(4)
 
     p_role = tf_tm.add_paragraph()
-    p_role.text = "Lead Full-Stack Developer & UI Architect • Department of Computer Science & Engineering"
-    p_role.font.size = Pt(12)
+    p_role.text = "Department of Computer Science & Engineering • Object Oriented Programming"
+    p_role.font.size = Pt(11)
     p_role.font.color.rgb = C_TEXT_MUTED
-    p_role.space_after = Pt(14)
+    p_role.space_after = Pt(10)
 
     p_cu = tf_tm.add_paragraph()
     p_cu.text = "Chandigarh University"
     p_cu.font.bold = True
-    p_cu.font.size = Pt(14)
+    p_cu.font.size = Pt(13)
     p_cu.font.color.rgb = C_BRAND_DARK
 
     p_dep = tf_tm.add_paragraph()
-    p_dep.text = "Deployment Readiness: GitHub Pages & Vercel Supported"
-    p_dep.font.size = Pt(11)
+    p_dep.text = "Live App: https://asususerabhishek-alt.github.io/studentworkspace/"
+    p_dep.font.size = Pt(10)
     p_dep.font.color.rgb = C_MINT_TEXT
     p_dep.space_before = Pt(4)
 
@@ -484,12 +484,10 @@ def create_presentation():
         r2.font.color.rgb = C_TEXT_MUTED
         p.space_after = Pt(8)
 
-    # Save to both requested filenames
-    out1 = "Student_Productivity_Suite_Presentation.pptx"
-    out2 = "Abhishek_Kumar_Java_Project_Presentation.pptx"
-    prs.save(out1)
-    prs.save(out2)
-    print(f"Presentation generated at {out1} and {out2}")
+    # Save submission presentation
+    out_name = "presentation.pptx"
+    prs.save(out_name)
+    print(f"Presentation generated at {out_name}")
 
 if __name__ == "__main__":
     create_presentation()

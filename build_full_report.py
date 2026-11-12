@@ -11,7 +11,7 @@ from reportlab.platypus import (
 
 def create_report():
     intermediate_pdf = "content_intermediate.pdf"
-    final_pdf = "Student_Productivity_Suite_Report.pdf"
+    final_pdf = "projectreport.pdf"
 
     bg_template = "/Users/shivamyadav/.gemini/antigravity/brain/507c59ed-413f-40d0-86f9-3fdc37df76d2/.user_uploaded/media_1794510464094_0a1c001e.pdf"
     front_page_pdf = "/Users/shivamyadav/.gemini/antigravity/brain/507c59ed-413f-40d0-86f9-3fdc37df76d2/.user_uploaded/media_1794510542480_72480aa9.pdf"
@@ -548,6 +548,9 @@ CREATE TABLE IF NOT EXISTS custom_subjects (
 
     with open(final_pdf, "wb") as f_out:
         writer.write(f_out)
+
+    if os.path.exists(intermediate_pdf):
+        os.remove(intermediate_pdf)
 
     print(f"Final professional report generated: {final_pdf} ({len(writer.pages)} pages total)")
 
