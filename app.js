@@ -30,6 +30,7 @@ class DatabaseManager {
       courses: [],
       tasks: [],
       flashcards: [],
+      customSubjects: [],
       pomodoroStats: {
         completedSessions: 0,
         totalMinutes: 0,
@@ -107,8 +108,12 @@ class DatabaseManager {
         duration_minutes INTEGER NOT NULL,
         completed_at INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS custom_subjects (
+        name TEXT PRIMARY KEY,
+        created_at INTEGER NOT NULL
+      );
     `);
-    // Note: Do NOT seed data initially per configuration requirement.
+    // Note: Database starts unseeded per specification.
   }
 
   persist() {
@@ -147,6 +152,20 @@ class DatabaseManager {
     }
     courseStmt.free();
     this.cache.courses = courses;
+
+    // Load custom subjects
+    try {
+      const subStmt = this.db.prepare("SELECT name FROM custom_subjects ORDER BY created_at ASC");
+      const subs = [];
+      while (subStmt.step()) {
+        const row = subStmt.getAsObject();
+        if (row.name) subs.push(row.name);
+      }
+      subStmt.free();
+      this.cache.customSubjects = subs;
+    } catch (e) {
+      this.cache.customSubjects = [];
+    }
 
     // Load tasks
     const taskStmt = this.db.prepare("SELECT * FROM tasks ORDER BY created_at DESC");
@@ -202,6 +221,7 @@ class DatabaseManager {
       const raw = localStorage.getItem(DatabaseManager.FALLBACK_KEY);
       if (raw) {
         this.cache = JSON.parse(raw);
+        if (!this.cache.customSubjects) this.cache.customSubjects = [];
         return;
       }
     } catch (e) {}
@@ -211,8 +231,48 @@ class DatabaseManager {
       courses: [],
       tasks: [],
       flashcards: [],
+      customSubjects: [],
       pomodoroStats: { completedSessions: 0, totalMinutes: 0, streakDays: 0 }
     };
+  }
+
+  // --- Unified Subject Management ---
+  getAllSubjects() {
+    const fromCourses = (this.cache.courses || []).map(c => c.name ? c.name.trim() : "").filter(Boolean);
+    const fromCustom = (this.cache.customSubjects || []).map(s => s ? s.trim() : "").filter(Boolean);
+    const combined = Array.from(new Set([...fromCourses, ...fromCustom]));
+    return combined;
+  }
+
+  addSubject(subjectName) {
+    const trimmed = (subjectName || "").trim();
+    if (!trimmed) return;
+
+    if (!this.cache.customSubjects) this.cache.customSubjects = [];
+    if (!this.cache.customSubjects.includes(trimmed)) {
+      this.cache.customSubjects.push(trimmed);
+      if (this.isSqlJsReady && this.db) {
+        try {
+          this.db.run("INSERT OR IGNORE INTO custom_subjects (name, created_at) VALUES (?, ?)", [trimmed, Date.now()]);
+        } catch (e) {}
+      }
+    }
+
+    // Also register subject into courses table if not already present
+    const existing = this.cache.courses.find(c => c.name.toLowerCase() === trimmed.toLowerCase());
+    if (!existing) {
+      const codeIndex = this.cache.courses.length + 1;
+      const code = "SUB-" + String(codeIndex).padStart(2, '0');
+      this.addCourse({
+        id: "C-" + Date.now(),
+        code: code,
+        name: trimmed,
+        credits: 4.0,
+        grade: "A"
+      });
+    } else {
+      this.persist();
+    }
   }
 
   // --- Task Operations ---
@@ -322,6 +382,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initPomodoro();
   initFlashcards();
   initAnalytics();
+  updateSubjectSelectors();
   updateHeaderBadges();
 });
 
@@ -352,6 +413,8 @@ function switchTab(tabName) {
 
   if (tabName === "analytics") {
     renderAnalytics();
+  } else if (tabName === "pomodoro" || tabName === "gpa") {
+    updateSubjectSelectors();
   }
 }
 
@@ -367,6 +430,44 @@ function updateHeaderBadges() {
   if (quickPending) quickPending.textContent = pendingCount;
 
   if (quickPomodoro) quickPomodoro.textContent = dbMgr.cache.pomodoroStats.completedSessions;
+}
+
+// ==========================================================================
+// Subject Selectors & Autocomplete Synchronization
+// ==========================================================================
+function updateSubjectSelectors(selectedSubject = null) {
+  const subjects = dbMgr.getAllSubjects();
+
+  // 1. Update Pomodoro Selector
+  const pomoSelector = document.getElementById("pomoSubjectSelector");
+  if (pomoSelector) {
+    const prevValue = selectedSubject || pomoSelector.value;
+    pomoSelector.innerHTML = "";
+
+    if (subjects.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "General Focus";
+      opt.textContent = "General Focus (Default)";
+      pomoSelector.appendChild(opt);
+    } else {
+      subjects.forEach(sub => {
+        const opt = document.createElement("option");
+        opt.value = sub;
+        opt.textContent = sub;
+        pomoSelector.appendChild(opt);
+      });
+    }
+
+    if (prevValue && subjects.includes(prevValue)) {
+      pomoSelector.value = prevValue;
+    }
+  }
+
+  // 2. Update Shared Datalist for Autocomplete
+  const datalist = document.getElementById("subjectListDatalist");
+  if (datalist) {
+    datalist.innerHTML = subjects.map(s => `<option value="${escapeHtml(s)}">`).join("");
+  }
 }
 
 // ==========================================================================
@@ -402,7 +503,12 @@ function initAssignments() {
     });
   }
 
-  if (btnOpenModal) btnOpenModal.addEventListener("click", () => taskModal.classList.add("active"));
+  if (btnOpenModal) {
+    btnOpenModal.addEventListener("click", () => {
+      updateSubjectSelectors();
+      taskModal.classList.add("active");
+    });
+  }
   const closeModal = () => taskModal.classList.remove("active");
   if (btnCloseModal) btnCloseModal.addEventListener("click", closeModal);
   if (btnCancelTask) btnCancelTask.addEventListener("click", closeModal);
@@ -410,16 +516,24 @@ function initAssignments() {
   if (taskForm) {
     taskForm.addEventListener("submit", (e) => {
       e.preventDefault();
+      const courseSubject = document.getElementById("taskSubjectInput").value.trim();
       const newTask = {
         id: "T-" + (Date.now() % 100000),
         title: document.getElementById("taskTitleInput").value.trim(),
-        course: document.getElementById("taskSubjectInput").value.trim(),
+        course: courseSubject,
         dueDate: document.getElementById("taskDateInput").value,
         priority: document.getElementById("taskPriorityInput").value,
         hours: parseInt(document.getElementById("taskHoursInput").value, 10) || 3,
         completed: false
       };
       dbMgr.addTask(newTask);
+
+      // Register subject into workspace subjects
+      if (courseSubject) {
+        dbMgr.addSubject(courseSubject);
+        updateSubjectSelectors();
+      }
+
       renderTasks();
       updateHeaderBadges();
       taskForm.reset();
@@ -449,7 +563,7 @@ function renderTasks() {
         <p>No assignments recorded yet.</p>
         <div class="empty-state-action">
           <button class="btn btn-sm btn-primary" onclick="document.getElementById('taskModal').classList.add('active')">
-            + New assignment
+            + New Assignment
           </button>
         </div>
       </div>
@@ -472,7 +586,7 @@ function renderTasks() {
       </div>
       <div class="task-footer-actions">
         <button class="btn btn-sm btn-secondary" onclick="toggleTaskComplete('${t.id}')">
-          ${t.completed ? 'Reopen' : 'Mark completed'}
+          ${t.completed ? 'Reopen' : 'Mark Completed'}
         </button>
         <button class="btn btn-sm btn-ghost" onclick="deleteTaskItem('${t.id}')">
           Delete
@@ -519,7 +633,12 @@ function initGpaCalculator() {
 
   renderCourseTable();
 
-  if (btnOpenModal) btnOpenModal.addEventListener("click", () => courseModal.classList.add("active"));
+  if (btnOpenModal) {
+    btnOpenModal.addEventListener("click", () => {
+      updateSubjectSelectors();
+      courseModal.classList.add("active");
+    });
+  }
   const closeModal = () => courseModal.classList.remove("active");
   if (btnCloseModal) btnCloseModal.addEventListener("click", closeModal);
   if (btnCancelCourse) btnCancelCourse.addEventListener("click", closeModal);
@@ -527,15 +646,19 @@ function initGpaCalculator() {
   if (courseForm) {
     courseForm.addEventListener("submit", (e) => {
       e.preventDefault();
+      const courseName = document.getElementById("courseNameInput").value.trim();
       const newCourse = {
         id: "C-" + (Date.now() % 100000),
         code: document.getElementById("courseCodeInput").value.trim(),
-        name: document.getElementById("courseNameInput").value.trim(),
+        name: courseName,
         credits: parseFloat(document.getElementById("courseCreditsInput").value),
         grade: document.getElementById("courseGradeInput").value
       };
       dbMgr.addCourse(newCourse);
+      dbMgr.addSubject(courseName);
+
       renderCourseTable();
+      updateSubjectSelectors();
       updateHeaderBadges();
       courseForm.reset();
       closeModal();
@@ -567,16 +690,16 @@ function renderCourseTable() {
       dispClassification.textContent = "No courses enrolled";
       dispClassification.className = "status-tag tag-neutral";
     } else if (sgpa >= 9.0) {
-      dispClassification.textContent = "First class with distinction";
+      dispClassification.textContent = "First Class With Distinction";
       dispClassification.className = "status-tag tag-green";
     } else if (sgpa >= 8.0) {
-      dispClassification.textContent = "First class with honors";
+      dispClassification.textContent = "First Class With Honors";
       dispClassification.className = "status-tag tag-neutral";
     } else if (sgpa >= 6.5) {
-      dispClassification.textContent = "First class";
+      dispClassification.textContent = "First Class";
       dispClassification.className = "status-tag tag-neutral";
     } else {
-      dispClassification.textContent = "Passing standing";
+      dispClassification.textContent = "Passing Standing";
       dispClassification.className = "status-tag tag-neutral";
     }
   }
@@ -585,7 +708,7 @@ function renderCourseTable() {
     tbody.innerHTML = `
       <tr>
         <td colspan="7" class="empty-state-cell">
-          No courses added yet. Click "+ Add course" to register modules and calculate your SGPA.
+          No courses added yet. Click "+ Add Course" to register modules and calculate your SGPA.
         </td>
       </tr>
     `;
@@ -616,6 +739,7 @@ function renderCourseTable() {
 window.deleteCourseItem = function(id) {
   dbMgr.deleteCourse(id);
   renderCourseTable();
+  updateSubjectSelectors();
   updateHeaderBadges();
 };
 
@@ -642,11 +766,11 @@ function runTargetSimulation() {
 }
 
 // ==========================================================================
-// Module 3: Pomodoro Focus Timer
+// Module 3: Pomodoro Focus Timer (Editable Duration & Custom Subjects)
 // ==========================================================================
 let timerInterval = null;
-let timerSeconds = 25 * 60;
 let initialSeconds = 25 * 60;
+let timerSeconds = 25 * 60;
 let isTimerRunning = false;
 let currentTimerMode = "focus";
 
@@ -655,16 +779,73 @@ function initPomodoro() {
   const btnPause = document.getElementById("btnTimerPause");
   const btnReset = document.getElementById("btnTimerReset");
   const modeBtns = document.querySelectorAll(".mode-btn");
+  const customInput = document.getElementById("customTimerMinutes");
+  const btnApplyDuration = document.getElementById("btnApplyDuration");
+  const btnAddSubject = document.getElementById("btnAddPomoSubject");
+  const newSubjectInput = document.getElementById("pomoNewSubjectInput");
 
+  // Mode preset buttons
   modeBtns.forEach(btn => {
     btn.addEventListener("click", () => {
       modeBtns.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       const mode = btn.getAttribute("data-mode");
       const mins = parseInt(btn.getAttribute("data-time"), 10);
-      setTimerMode(mode, mins);
+
+      if (customInput) customInput.value = mins;
+      setTimerDuration(mode, mins);
     });
   });
+
+  // Custom duration setter
+  const applyCustomDuration = () => {
+    if (!customInput) return;
+    let mins = parseInt(customInput.value, 10);
+    if (isNaN(mins) || mins < 1) mins = 1;
+    if (mins > 180) mins = 180;
+    customInput.value = mins;
+
+    // Remove active from presets if not matching standard preset
+    modeBtns.forEach(b => {
+      const bMins = parseInt(b.getAttribute("data-time"), 10);
+      b.classList.toggle("active", bMins === mins);
+    });
+
+    setTimerDuration("focus", mins);
+  };
+
+  if (btnApplyDuration) btnApplyDuration.addEventListener("click", applyCustomDuration);
+  if (customInput) {
+    customInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        applyCustomDuration();
+      }
+    });
+  }
+
+  // Add custom subject button
+  const handleAddNewSubject = () => {
+    if (!newSubjectInput) return;
+    const name = newSubjectInput.value.trim();
+    if (!name) return;
+
+    dbMgr.addSubject(name);
+    updateSubjectSelectors(name);
+    renderCourseTable();
+    updateHeaderBadges();
+    newSubjectInput.value = "";
+  };
+
+  if (btnAddSubject) btnAddSubject.addEventListener("click", handleAddNewSubject);
+  if (newSubjectInput) {
+    newSubjectInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleAddNewSubject();
+      }
+    });
+  }
 
   if (btnStart) btnStart.addEventListener("click", startTimer);
   if (btnPause) btnPause.addEventListener("click", pauseTimer);
@@ -674,7 +855,7 @@ function initPomodoro() {
   updatePomodoroStats();
 }
 
-function setTimerMode(mode, minutes) {
+function setTimerDuration(mode, minutes) {
   pauseTimer();
   currentTimerMode = mode;
   initialSeconds = minutes * 60;
@@ -682,9 +863,9 @@ function setTimerMode(mode, minutes) {
 
   const modeLabel = document.getElementById("timerModeLabel");
   if (modeLabel) {
-    if (mode === "focus") modeLabel.textContent = "Focus interval";
-    else if (mode === "shortBreak") modeLabel.textContent = "Short break";
-    else modeLabel.textContent = "Long recess";
+    if (mode === "shortBreak") modeLabel.textContent = `Short Break (${minutes}m)`;
+    else if (mode === "longBreak") modeLabel.textContent = `Long Break (${minutes}m)`;
+    else modeLabel.textContent = `Focus Interval (${minutes}m)`;
   }
 
   updateTimerDisplay();
@@ -743,7 +924,7 @@ function updateTimerDisplay() {
   const ring = document.getElementById("timerProgress");
   if (ring) {
     const totalCircumference = 2 * Math.PI * 104; // r = 104
-    const fraction = timerSeconds / initialSeconds;
+    const fraction = initialSeconds > 0 ? (timerSeconds / initialSeconds) : 0;
     const offset = totalCircumference * (1 - fraction);
     ring.style.strokeDashoffset = offset;
   }
@@ -816,7 +997,12 @@ function initFlashcards() {
     });
   }
 
-  if (btnOpenModal) btnOpenModal.addEventListener("click", () => modal.classList.add("active"));
+  if (btnOpenModal) {
+    btnOpenModal.addEventListener("click", () => {
+      updateSubjectSelectors();
+      modal.classList.add("active");
+    });
+  }
   const closeFcModal = () => modal.classList.remove("active");
   if (btnClose) btnClose.addEventListener("click", closeFcModal);
   if (btnCancel) btnCancel.addEventListener("click", closeFcModal);
@@ -824,14 +1010,21 @@ function initFlashcards() {
   if (form) {
     form.addEventListener("submit", (e) => {
       e.preventDefault();
+      const topicSubject = document.getElementById("fcSubjectInput").value.trim();
       const newCard = {
         id: "FC-" + (Date.now() % 100000),
-        subject: document.getElementById("fcSubjectInput").value.trim(),
+        subject: topicSubject,
         question: document.getElementById("fcQuestionInput").value.trim(),
         answer: document.getElementById("fcAnswerInput").value.trim(),
         mastered: false
       };
       dbMgr.addFlashcard(newCard);
+
+      if (topicSubject) {
+        dbMgr.addSubject(topicSubject);
+        updateSubjectSelectors();
+      }
+
       currentCardIndex = dbMgr.cache.flashcards.length - 1;
       cardInner.classList.remove("flipped");
       renderActiveCard();
@@ -854,10 +1047,10 @@ function renderActiveCard() {
   if (dbMgr.cache.flashcards.length === 0) {
     if (fcSubject) fcSubject.textContent = "Active Recall";
     if (fcCounter) fcCounter.textContent = "0 Cards";
-    if (fcQuestion) fcQuestion.textContent = "No revision flashcards added yet. Click '+ New card' to add concept prompts for active recall.";
+    if (fcQuestion) fcQuestion.textContent = "No revision flashcards added yet. Click '+ New Card' to add concept prompts for active recall.";
     if (fcAnswer) fcAnswer.textContent = "Answers will appear here once cards are created.";
     if (fcMasteryTag) fcMasteryTag.textContent = "Empty";
-    if (fcMasterBtnText) fcMasterBtnText.textContent = "Mark mastered";
+    if (fcMasterBtnText) fcMasterBtnText.textContent = "Mark Mastered";
     return;
   }
 
@@ -880,7 +1073,7 @@ function renderActiveCard() {
       fcMasteryTag.textContent = "Unmastered";
       fcMasteryTag.style.color = "var(--text-muted)";
     }
-    if (fcMasterBtnText) fcMasterBtnText.textContent = "Mark mastered";
+    if (fcMasterBtnText) fcMasterBtnText.textContent = "Mark Mastered";
   }
 }
 

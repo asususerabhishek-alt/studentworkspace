@@ -365,24 +365,7 @@ Mastered Topics:  ${flashcards.filter(f => f.mastered).length}
         {/* Top Header */}
         <header className="app-header">
           <div className="header-left">
-            <a href="#assignments" className="brand-link" onClick={() => setActiveTab("assignments")}>
-              <span className="brand-mark">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                </svg>
-              </span>
-              <span className="brand-name">Student Workspace</span>
-            </a>
-            <span className="header-divider">/</span>
-            <span className="header-context">Academic Workspace</span>
-          </div>
-
-          <div className="header-center">
-            <div className="student-chip">
-              <span className="student-avatar">SW</span>
-              <span className="student-name">Student Workspace</span>
-              <span className="student-meta">Academic Workspace</span>
-            </div>
+            <span className="brand-title">StudentWorkspace</span>
           </div>
 
           <div className="header-right">
@@ -407,36 +390,11 @@ Mastered Topics:  ${flashcards.filter(f => f.mastered).length}
         <nav className="app-nav">
           <div className="nav-container">
             <div className="nav-tabs">
-              <button className={`nav-tab ${activeTab === "assignments" ? "active" : ""}`} onClick={() => setActiveTab("assignments")}>
-                <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                </svg>
-                <span>Assignments</span>
-              </button>
-              <button className={`nav-tab ${activeTab === "gpa" ? "active" : ""}`} onClick={() => setActiveTab("gpa")}>
-                <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
-                </svg>
-                <span>SGPA Calculator</span>
-              </button>
-              <button className={`nav-tab ${activeTab === "pomodoro" ? "active" : ""}`} onClick={() => setActiveTab("pomodoro")}>
-                <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                </svg>
-                <span>Focus Timer</span>
-              </button>
-              <button className={`nav-tab ${activeTab === "flashcards" ? "active" : ""}`} onClick={() => setActiveTab("flashcards")}>
-                <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 3H4a2 2 0 0 0-2 2v2"/>
-                </svg>
-                <span>Revision Flashcards</span>
-              </button>
-              <button className={`nav-tab ${activeTab === "analytics" ? "active" : ""}`} onClick={() => setActiveTab("analytics")}>
-                <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-                </svg>
-                <span>Summary & Export</span>
-              </button>
+              <button className={`nav-tab ${activeTab === "assignments" ? "active" : ""}`} onClick={() => setActiveTab("assignments")}>Assignments</button>
+              <button className={`nav-tab ${activeTab === "gpa" ? "active" : ""}`} onClick={() => setActiveTab("gpa")}>SGPA Calculator</button>
+              <button className={`nav-tab ${activeTab === "pomodoro" ? "active" : ""}`} onClick={() => setActiveTab("pomodoro")}>Focus Timer</button>
+              <button className={`nav-tab ${activeTab === "flashcards" ? "active" : ""}`} onClick={() => setActiveTab("flashcards")}>Revision Flashcards</button>
+              <button className={`nav-tab ${activeTab === "analytics" ? "active" : ""}`} onClick={() => setActiveTab("analytics")}>Summary &amp; Export</button>
             </div>
           </div>
         </nav>
@@ -888,15 +846,6 @@ Database:         Embedded SQLite WebAssembly Engine
           )}
 
         </main>
-
-        {/* Footer */}
-        <footer className="app-footer">
-          <div className="footer-container">
-            <span className="footer-left">Student Workspace</span>
-            <span className="footer-center">Offline-First Academic Productivity • SQLite WebAssembly Engine</span>
-            <span className="footer-right">Local Persistence</span>
-          </div>
-        </footer>
       </div>
 
       {/* Modal 1: Assignment */}
